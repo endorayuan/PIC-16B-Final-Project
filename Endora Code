@@ -1,0 +1,101 @@
+# Preprocessing
+import pandas as pd
+
+chunk_size = 100_000  # rows per chunk
+chunks = []
+
+for chunk in pd.read_csv('TMDB_movie_dataset_v11.csv', chunksize=chunk_size):
+    chunks.append(chunk)
+
+df_all_cols = pd.concat(chunks, ignore_index=True)
+
+print(df_all_cols.columns.tolist())
+
+df = df_all_cols.drop(columns = ['vote_count', 'runtime', 'adult', 'backdrop_path', 'budget', 'homepage', 'original_language', 'original_title',
+                                  'production_companies', 'production_countries', 'spoken_languages'])
+
+# Data Visualization
+import matplotlib.pyplot as plt
+import seaborn as sns
+from collections import Counter
+
+# Plot #1
+all_genres = df['genres'].dropna().str.split(',').explode().str.strip()
+genre_counts = Counter(all_genres).most_common()
+genre_df = pd.DataFrame(genre_counts, columns=['genre', 'count'])
+
+plt.figure(figsize=(12, 6))
+sns.barplot(data=genre_df, x='count', y='genre', color='steelblue')
+plt.title('Genre Frequency — Which Genres Dominate the Dataset?', fontsize=14, fontweight='bold')
+plt.xlabel('Number of Movies')
+plt.ylabel('Genre')
+plt.grid(axis='x', alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+# Plot #2
+plt.figure(figsize=(12, 6))
+
+sns.scatterplot(
+    data=df,
+    x='popularity',
+    y='vote_average',
+    alpha=0.3,
+    color='steelblue',
+    edgecolor=None,
+    s=15
+)
+
+# Add a trend line
+m, b = np.polyfit(df['popularity'].dropna(), df['vote_average'].dropna(), 1)
+x_line = np.linspace(df['popularity'].min(), df['popularity'].max(), 100)
+plt.plot(x_line, m * x_line + b, color='crimson', linewidth=2, label=f'Trend line')
+
+plt.title('Popularity vs. Vote Average — Are Popular Movies Actually Well-Rated?', fontsize=14, fontweight='bold')
+plt.xlabel('Popularity')
+plt.ylabel('Vote Average')
+plt.legend()
+plt.grid(alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+# Correlation coefficient
+corr = df[['popularity', 'vote_average']].corr().iloc[0, 1]
+print(f"Pearson Correlation: {corr:.4f}")
+if abs(corr) < 0.2:
+    print("→ Very weak relationship — popularity does not predict rating")
+elif abs(corr) < 0.4:
+    print("→ Weak relationship — popularity barely influences rating")
+elif abs(corr) < 0.6:
+    print("→ Moderate relationship")
+else:
+    print("→ Strong relationship — popular movies tend to be well-rated")
+
+# Word2Vec
+import nltk
+from nltk.tokenize import word_tokenize
+from gensim.models import Word2Vec
+
+sentences = [row.split() for row in df['columns']]
+
+    # Train the Word2Vec model
+    # vector_size: dimensionality of the word vectors
+    # window: maximum distance between the current and predicted word within a sentence
+    # min_count: ignores all words with total frequency lower than this
+    # workers: use this many worker threads to train the model
+word2vec_model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4, iter=15)
+
+    # function to get a document vector by averaging the word vectors within the document
+def get_document_vector(text_tokens, model, vector_size):
+    vectors = []
+    for word in text_tokens:
+        if word in model.wv:
+            vectors.append(model.wv[word])
+        if vectors:
+            return np.mean(vectors, axis=0)
+        else:
+            # return a zero vector if no words from the document are found in the model's vocabulary
+            return np.zeros(vector_size)
+
+    # Create a new column in the DataFrame for the Word2Vec document vectors
+df['word2vec_vectors'] = [get_document_vector(tokens, word2vec_model, 100) for tokens in sentences]
