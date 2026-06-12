@@ -223,3 +223,44 @@ def nearest_neighbors(movie, vectorized_column, cluster_model = None):
 
     #Return the distance score and the recommended movie
     return (distance_score, recommended_title)
+
+
+
+#Final recommendation algorithm
+def recommend(movie, vectorized_column, cluster_model = None):
+    """
+    A function to find recommendations for a movie using the cosine similarity metric. 
+
+    Args:
+        movie: string. The title of movie you wish to find a recommendation for
+        vectorized_column: numpy array. The vectorization technique you wish to use for your recommendation
+        cluster_model: string (default = None). The name of the column that corresponds to the vectorization technique you are inputting
+            and the clustering model you wish to use
+    Return:
+        recommended_title: pandas dataframe. A dataframe containing three recommended movies
+    """
+    #For when we are passing in a cluster
+    if cluster_model != None:
+        #Call the helper function to find the new movie index and the subset of the vectorized array 
+        #based on the cluster that the movie belongs to
+        movie_index, vectorized_column = find_from_cluster(movie, cluster_model, vectorized_column)
+    else:
+        #Find the index of the movie in the dataframe
+        movie_index = df[df["title"] == movie].index
+
+    #Compute the similarity between movies in the dataframe
+    similarity = cosine_similarity(vectorized_column[movie_index], vectorized_column)
+
+    #Sort all of the movies' indices by similarity scores, from highest to lowest, and take the second index (so the recommendation
+    #isn't the input)
+    index = np.argsort(-similarity)[0, 1:4]
+
+    #Subset the recommended movies from the dataset
+    recommended_titles = df.iloc[index].reset_index(drop = True)
+    recommended_titles = recommended_titles[["title", "release_date", "overview", "genres"]]
+
+    #Return the similarity score and a dataframe with the most similar movie
+    return recommended_titles
+
+#Create a new dataframe with all of the recommended movies
+recommendations = recommend(correct_movies, word2vec_vector)
