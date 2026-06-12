@@ -30,6 +30,8 @@ def repeated_experiments(metric, movie_list, vector, cluster = None):
     #Return the average score of all runs for the combination 
     return ave_score
 
+
+
 #Testing process
 #Create a pandas series of 10 movies, randomly selected from the dataframe
 random_movies = random.randint(204389, size = (10))
@@ -41,6 +43,8 @@ cosine_scores = []
 
 #Initialize a list to store all of the nearest neighbors score
 neighbor_scores = []
+
+
 
 #Cosine similarity only and count vectorizer
 cosine_scores.append(repeated_experiments(similarity_of_movies, 
@@ -143,6 +147,9 @@ neighbor_scores.append(repeated_experiments(nearest_neighbors,
                                             word2vec_vector, 
                                             "gmm word2vec"))
 
+
+
+
 #Create a dictionary to map the combination to their similarity scores
 cosine_similarity_scores = {"Vectorization Techniques": ["Count Vectorizer", "TFIDF", "Word2Vec"],
                             "Cosine Similarity" : [cosine_scores[0], cosine_scores[1], cosine_scores[2]], 
@@ -161,7 +168,3 @@ pd.set_option("display.precision", 4)
 
 #Create a dataframe to display all of the average distance scores
 nearest_neighbors = pd.DataFrame(data = nearest_neighbors_scores)
-
-
-
-
