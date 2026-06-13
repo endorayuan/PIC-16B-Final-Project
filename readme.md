@@ -1,3 +1,5 @@
+This is our final project for PIC16B. You input a movie you've watched and we'll return 3 that are similar to the movie you've input. 
+
 Equal Contribution Statement:
   All group members: Vy, Endora, and Ashley, contributed equally to this project. 
     Preprocessing: Ashley,
