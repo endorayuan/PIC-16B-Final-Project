@@ -32,8 +32,7 @@ from difflib import get_close_matches
 @st.cache_data
 def load_data():
     df = pd.read_csv("TMDB_movie_dataset_v11.csv")
-    # preprocessing...
-    return df
+    return preprocessing(df)
 
 #PREPROCESSING________________________________________
 def standardization(input_data):
@@ -99,10 +98,10 @@ def preprocessing(df):
 
   #Standardizes Columns
   df["columns"] = standardization(df["columns"])
+  df = df.reset_index()
+  return df
 
 df = load_data()
-
-  return df
 
 #Preprocessing the Data Frame
 df = preprocessing(df)
