@@ -94,86 +94,9 @@ def preprocessing(df):
   df = df.reset_index()
   return df
 
-# LOADING THE DATASET ________________________________________
-# use this cache function so streamlit doesn't run the entire script for every interaction
-@st.cache_data
-def load_data():
-    df = pd.read_csv("TMDB_movie_dataset_v11.csv")
-    return preprocessing(df)
-
-df = load_data()
-
-#USER INTERFACE + user input function _______________________________
-
-# displaying arguments
-st.title("Recommendation Box")
-st.write("Made by Vy, Ashley, and Endora")
-st.write("Hello and welcome to the recommendation box!")
-st.write("This is a movie recommendation system that utilizes machine learning to help you decide which movie to watch next.")
-st.write("In order to use this program, type in one movie you've watched recently that you loved and want to see more of!")
-
-user_input = st.text_input("Your Movie Here")
-st.write("Make sure it's the correct spelling & capitalization!")
-
-if user_input:
-    user_movies = [movie.strip() for movie in user_input.split(",")]
-    correct_movies= []
-
-    # Iterates through the users movie
-    for movie in user_movies:
-        #gets the closest title in the dataframe
-        matches = get_close_matches(movie, df["display_title"],cutoff=0.4)
-        #If there is a match
-        if matches:
-            #Appends the first matched movie title into correct_movies
-            correct_movies.append(matches[0])
-        else:
-            st.warning(f"No movie found for: {movie}")
-
-    if correct_movies:
-      st.write("We think you'd enjoy the following movie(s)...")
-      st.success(f"Matched movies: {correct_movies}")
-      recommendations = recommend(correct_movies[0], word2vec_vector)
-      st.dataframe(recommendations)
-
-#DATA VISUALIZATION___________________________________
-
-#Creates a histogram of movies released each year
-fig, ax=plt.subplots(figsize=(20,8))
-fig= sns.histplot(df, x= "release_year")
-plt.xticks(np.arange(df["release_year"].min(),df["release_year"].max()+1,10)) #this was to change the tiks bcuz it was horrific
-plt.suptitle("Representation of the Growing Influx of Movies",fontsize=20, fontweight = "bold")
-plt.ylabel("Number of Movies", fontweight = "bold")
-plt.xlabel("Release Year", fontweight = "bold")
-plt.show()
-
-#Creates a line plot of the average movie rating per year
-fig= plt.figure(figsize=(20,8))
-average_df = df.groupby("release_year")["vote_average"].mean()
-fig= sns.lineplot(x = average_df.index, y = average_df.values)
-plt.xticks(np.arange(df["release_year"].min(), df["release_year"].max()+1, 10))
-plt.suptitle("Average Vote_average per Year", fontsize = 20, fontweight = "bold")
-plt.ylabel("Average Vote Average", fontweight = "bold")
-plt.xlabel("Release Year", fontweight = "bold")
-plt.show()
-
-#Creates a bar plot of genre frequency
-all_genres = df['genres'].dropna().str.split(',').explode().str.strip()
-genre_counts = Counter(all_genres).most_common()
-genre_df = pd.DataFrame(genre_counts, columns=['genre', 'count'])
-
-plt.figure(figsize=(12, 6))
-sns.barplot(data=genre_df, x='count', y='genre', color='steelblue')
-plt.title('Genre Frequency — Which Genres Dominate the Dataset?', fontsize=14, fontweight='bold')
-plt.xlabel('Number of Movies')
-plt.ylabel('Genre')
-plt.grid(axis='x', alpha=0.3)
-plt.tight_layout()
-plt.show()
-
 #TEXT VECTORIZATION ______________________________________
 #Count Vectorizer
-def count_vectorization (columns):
+def count_vectorization(columns):
     """
     A function to vectorize a standardized text column using CountVectorizer()
 
@@ -192,11 +115,8 @@ def count_vectorization (columns):
     #Return the column
     return count_matrix
 
-#Apply count vectorizer onto the "columns" column
-count_matrix = count_vectorization("columns")
-
 #TFIDF Vectorizer
-def tfidf_vectorization (df, columns):
+def tfidf_vectorization(df, columns):
   '''
   This function turns a text column into a tfidf matrix
   Args:
@@ -212,40 +132,6 @@ def tfidf_vectorization (df, columns):
   features = tfidf.get_feature_names_out()
 
   return matrix, features
-    
-#Runs TFIDF on our selected columns
-tfidf_matrix, features = tfidf_vectorization(df, "columns")
-
-#Turns the matrix into a dense Numpy Array
-array_tfidf_matrix = tfidf_matrix.toarray()
-
-#creates a new data frame of the first 10 films in the TFIDF Matrix
-heat_map_df = pd.DataFrame(array_tfidf_matrix[:10], columns = features, index = df["title"][:10])
-
-#Organizes the dataframe so that we select the 20 most influential words
-top_words = heat_map_df.sum().sort_values(ascending = False).head(20).index
-
-#Creates a HeatMap of TFIDF scores
-plt.figure(figsize=(12,6))
-sns.heatmap(heat_map_df[top_words], cmap ="RdPu")
-plt.title("TF-IDF Vectorization", fontsize = 20, fontweight = "bold")
-plt.xlabel("Features", fontweight = "bold")
-plt.ylabel("Movies", fontweight = "bold")
-plt.show()
-
-# Word2Vec Vectorization
-import nltk
-from nltk.tokenize import word_tokenize
-from gensim.models import Word2Vec
-
-sentences = [row.split() for row in df['columns']]
-
-# Train the Word2Vec model
-# vector_size: dimensionality of the word vectors
-# window: maximum distance between the current and predicted word within a sentence
-# min_count: ignores all words with total frequency lower than this
-# workers: use this many worker threads to train the model
-word2vec_model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4, epochs=15)
 
 def get_document_vector(text_tokens, model, vector_size):
     vectors = []
@@ -257,12 +143,6 @@ def get_document_vector(text_tokens, model, vector_size):
         return np.mean(vectors, axis=0)
     else:
         return np.zeros(vector_size)
-
-    # Create a new column in the DataFrame for the Word2Vec document vectors
-df['word2vec_vectors'] = [get_document_vector(tokens, word2vec_model, 100) for tokens in sentences]
-
-#Put all vectorized rows into a numpy array
-word2vec_vector = np.array([get_document_vector(tokens, word2vec_model, 100) for tokens in sentences])
 
 #Dimension reduction
 def reduce_dimension(vectorized_column, n_comp):
@@ -289,12 +169,6 @@ def reduce_dimension(vectorized_column, n_comp):
 
     #Return the reduced array
     return reduced_vector
-
-#Reduce count_matrix to 100 features
-count_matrix_reduced = reduce_dimension(count_matrix, 100)
-
-#Reduce tfidf_matrix to 100 features
-tfidf_matrix_reduced = reduce_dimension(tfidf_matrix, 100)
 
 # MACHINE LEARNING CLUSTERING _______________________________________
 # you must pip install scikit-fuzzy 
@@ -551,3 +425,141 @@ def recommend(movie, vectorized_column, cluster_model = None):
 
     #Return the similarity score and a dataframe with the most similar movie
     return recommended_titles
+
+# LOADING THE DATASET ________________________________________
+# use this cache function so streamlit doesn't run the entire script for every interaction
+@st.cache_data
+def load_data():
+    df = pd.read_csv("TMDB_movie_dataset_v11.csv")
+    return preprocessing(df)
+
+df = load_data()
+
+# COMPUTE VECTORIZATIONS (cached so they only run once) ________________________________________
+@st.cache_data
+def compute_vectors(_df):
+    """ This function includes all the vectorization methods for streamlit to more efficiently process the models """ 
+    #Apply count vectorizer onto the "columns" column
+    count_matrix = count_vectorization("columns")
+
+    #Runs TFIDF on our selected columns
+    tfidf_matrix, features = tfidf_vectorization(_df, "columns")
+
+    #Turns the matrix into a dense Numpy Array
+    array_tfidf_matrix = tfidf_matrix.toarray()
+
+    #creates a new data frame of the first 10 films in the TFIDF Matrix
+    heat_map_df = pd.DataFrame(array_tfidf_matrix[:10], columns = features, index = _df["title"][:10])
+
+    #Organizes the dataframe so that we select the 20 most influential words
+    top_words = heat_map_df.sum().sort_values(ascending = False).head(20).index
+
+    #Creates a HeatMap of TFIDF scores
+    plt.figure(figsize=(12,6))
+    sns.heatmap(heat_map_df[top_words], cmap ="RdPu")
+    plt.title("TF-IDF Vectorization", fontsize = 20, fontweight = "bold")
+    plt.xlabel("Features", fontweight = "bold")
+    plt.ylabel("Movies", fontweight = "bold")
+    plt.show()
+
+    # Word2Vec Vectorization
+    sentences = [row.split() for row in _df['columns']]
+
+    # Train the Word2Vec model
+    # vector_size: dimensionality of the word vectors
+    # window: maximum distance between the current and predicted word within a sentence
+    # min_count: ignores all words with total frequency lower than this
+    # workers: use this many worker threads to train the model
+    word2vec_model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4, epochs=15)
+
+    # Create a new column in the DataFrame for the Word2Vec document vectors
+    word2vec_vectors_col = [get_document_vector(tokens, word2vec_model, 100) for tokens in sentences]
+
+    #Put all vectorized rows into a numpy array
+    word2vec_vector = np.array([get_document_vector(tokens, word2vec_model, 100) for tokens in sentences])
+
+    #Reduce count_matrix to 100 features
+    count_matrix_reduced = reduce_dimension(count_matrix, 100)
+
+    #Reduce tfidf_matrix to 100 features
+    tfidf_matrix_reduced = reduce_dimension(tfidf_matrix, 100)
+
+    return count_matrix, tfidf_matrix, features, word2vec_model, word2vec_vector, count_matrix_reduced, tfidf_matrix_reduced
+
+count_matrix, tfidf_matrix, features, word2vec_model, word2vec_vector, count_matrix_reduced, tfidf_matrix_reduced = compute_vectors(df)
+
+# Add word2vec vectors column to df
+sentences = [row.split() for row in df['columns']]
+df['word2vec_vectors'] = [get_document_vector(tokens, word2vec_model, 100) for tokens in sentences]
+
+#DATA VISUALIZATION___________________________________
+
+#Creates a histogram of movies released each year
+fig, ax=plt.subplots(figsize=(20,8))
+fig= sns.histplot(df, x= "release_year")
+plt.xticks(np.arange(df["release_year"].min(),df["release_year"].max()+1,10)) #this was to change the tiks bcuz it was horrific
+plt.suptitle("Representation of the Growing Influx of Movies",fontsize=20, fontweight = "bold")
+plt.ylabel("Number of Movies", fontweight = "bold")
+plt.xlabel("Release Year", fontweight = "bold")
+plt.show()
+
+#Creates a line plot of the average movie rating per year
+fig= plt.figure(figsize=(20,8))
+average_df = df.groupby("release_year")["vote_average"].mean()
+fig= sns.lineplot(x = average_df.index, y = average_df.values)
+plt.xticks(np.arange(df["release_year"].min(), df["release_year"].max()+1, 10))
+plt.suptitle("Average Vote_average per Year", fontsize = 20, fontweight = "bold")
+plt.ylabel("Average Vote Average", fontweight = "bold")
+plt.xlabel("Release Year", fontweight = "bold")
+plt.show()
+
+#Creates a bar plot of genre frequency
+all_genres = df['genres'].dropna().str.split(',').explode().str.strip()
+genre_counts = Counter(all_genres).most_common()
+genre_df = pd.DataFrame(genre_counts, columns=['genre', 'count'])
+
+plt.figure(figsize=(12, 6))
+sns.barplot(data=genre_df, x='count', y='genre', color='steelblue')
+plt.title('Genre Frequency — Which Genres Dominate the Dataset?', fontsize=14, fontweight='bold')
+plt.xlabel('Number of Movies')
+plt.ylabel('Genre')
+plt.grid(axis='x', alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+#USER INTERFACE + user input function _______________________________
+
+# displaying arguments
+st.title("Recommendation Box")
+st.write("Made by Vy, Ashley, and Endora")
+st.write("Hello and welcome to the recommendation box!")
+st.write("This is a movie recommendation system that utilizes machine learning to help you decide which movie to watch next.")
+st.write("In order to use this program, type in one movie you've watched recently that you loved and want to see more of!")
+
+user_input = st.text_input("Your Movie Here")
+st.write("Make sure it's the correct spelling & capitalization!")
+
+if user_input:
+    user_movies = [movie.strip() for movie in user_input.split(",")]
+    correct_movies= []
+
+    # Iterates through the users movie
+    for movie in user_movies:
+        #gets the closest title in the dataframe
+        matches = get_close_matches(movie, df["display_title"],cutoff=0.4)
+        #If there is a match
+        if matches:
+            #Appends the first matched movie title into correct_movies
+            correct_movies.append(matches[0])
+        else:
+            st.warning(f"No movie found for: {movie}")
+
+    if correct_movies:
+        st.write("We think you'd enjoy the following movie(s)...")
+        st.success(f"Matched movies: {correct_movies}")
+    
+        # Strip the year "(YYYY)" from display_title to get plain title for recommend()
+        plain_title = df[df["display_title"] == correct_movies[0]]["title"].iloc[0]
+        
+        recommendations = recommend(plain_title, word2vec_vector)
+        st.dataframe(recommendations)
