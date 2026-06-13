@@ -1,7 +1,6 @@
 #Importing all necessary libraries
 import pandas as pd
 import numpy as np
-import seaborn as sns
 from numpy import random
 from collections import Counter
 
@@ -14,18 +13,21 @@ import sys
 import warnings
 import os
 
-from sklearn.decomposition import PCA
+import seaborn as sns
 import matplotlib.pyplot as plt
+import plotly.express as px
+
+from sklearn.decomposition import PCA
 
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 import skfuzzy as fuzz
 from sklearn.mixture import GaussianMixture
-from sklearn.metrics import silhouette_score
 
 import streamlit as st
 from difflib import get_close_matches
 
+# LOADING THE DATASET ________________________________________
 # use this cache function so streamlit doesn't run the entire script for every interaction
 @st.cache_data
 def load_data():
@@ -332,29 +334,29 @@ def find_best_clusters(matrix, min_clusters=2, max_clusters=10):
   return best_clusters, best_fpc
     
 def fuzzy_clustering(matrix, best_clusters, fuzziness_param = 2, error = 1e-5, maxiter =1000):
-  """
-  Fuzzy C-means clustering algorithm
-  Args:
-    Matrix: Reduced Vectorized Matrix
-    best_cluster: Best number of clusters l
-    fuzziness_param: Fuzziness parameter
-    maxiter: max number of iterations
-  Returns:
-    Cluster membership of each movie
-  """
-  #transpose Matrix
-  matrix = matrix.T
-  #Fuzzy C-means Clustering
-  cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(matrix, best_clusters, fuzziness_param, error, maxiter)
-  #Determines cluster membership of each movie
-  cluster_membership = np.argmax(u, axis = 0)
-  return cluster_membership
+    """
+    Fuzzy C-means clustering algorithm
+    Args:
+        Matrix: Reduced Vectorized Matrix
+        best_cluster: Best number of clusters
+        fuzziness_param: Fuzziness parameter
+        maxiter: max number of iterations
+    Returns:
+        Cluster membership of each movie
+    """
+    #transpose Matrix
+    matrix = matrix.T
+    #Fuzzy C-means Clustering
+    cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(matrix, best_clusters, fuzziness_param, error, maxiter)
+    #Determines cluster membership of each movie
+    cluster_membership = np.argmax(u, axis = 0)
+    return cluster_membership
 
 def run_gmm(vectorized_column, n_components=8):
     # Fit GMM
     gmm = GaussianMixture(n_components=n_components, covariance_type="full", random_state=42)
     gmm.fit(vectorized_column)
-    membership = gmm.predict(reduced_vector)
+    membership = gmm.predict(vectorized_column)
 
     print("Cluster distribution:")
     print(df["gmm_cluster"].value_counts().sort_index())
@@ -362,8 +364,8 @@ def run_gmm(vectorized_column, n_components=8):
     # Visualization
     plot_df = pd.DataFrame({
         "Movie Title":      df["title"],
-        "First Dimension":  reduced_vector[:, 0],
-        "Second Dimension": reduced_vector[:, 1],
+        "First Dimension":  vectorized_column[:, 0],
+        "Second Dimension": vectorized_column[:, 1],
         "Cluster":          df["gmm_cluster"].astype(str)
     })
 
@@ -379,6 +381,7 @@ def run_gmm(vectorized_column, n_components=8):
 
     return membership
 
+# RECOMMENDATION ALGORITHMS _______________________________________
 #Find Cluster
 def find_from_cluster(movie, class_type, vectorized_column):
     """
@@ -413,8 +416,6 @@ def find_from_cluster(movie, class_type, vectorized_column):
 
     #Return a list with the new movie index and the subset of vectorzed data
     return [movie_index, subset_of_vector]
-
-
 
 #Cosine Similarity
 def similarity_of_movies(movie, vectorized_column, cluster_model = None):
@@ -461,8 +462,6 @@ def similarity_of_movies(movie, vectorized_column, cluster_model = None):
 
     #Return the similarity score and a dataframe with the most similar movie
     return (similarity_score, recommended_title)
-
-
 
 #Nearest Neighbors
 def nearest_neighbors(movie, vectorized_column, cluster_model = None):
@@ -520,8 +519,6 @@ def nearest_neighbors(movie, vectorized_column, cluster_model = None):
 
     #Return the distance score and the recommended movie
     return (distance_score, recommended_title)
-
-
 
 #Final recommendation algorithm
 def recommend(movie, vectorized_column, cluster_model = None):
