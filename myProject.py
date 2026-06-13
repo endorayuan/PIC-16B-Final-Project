@@ -256,6 +256,34 @@ def fuzzy_clustering(matrix, best_clusters, fuzziness_param = 2, error = 1e-5, m
     cluster_membership = np.argmax(u, axis = 0)
     return cluster_membership
 
+def run_gmm(vectorized_column, n_components=8):
+    # Fit GMM
+    gmm = GaussianMixture(n_components=n_components, covariance_type="full", random_state=42)
+    gmm.fit(reduced_vector)
+    membership = gmm.predict(reduced_vector)
+
+    print("Cluster distribution:")
+    print(df["gmm_cluster"].value_counts().sort_index())
+
+    # Visualization
+    plot_df = pd.DataFrame({
+        "Movie Title":      df["title"],
+        "First Dimension":  reduced_vector[:, 0],
+        "Second Dimension": reduced_vector[:, 1],
+        "Cluster":          df["gmm_cluster"].astype(str)
+    })
+
+    fig = px.scatter(
+        plot_df,
+        x="First Dimension",
+        y="Second Dimension",
+        color="Cluster",
+        hover_data="Movie Title",
+        title="Distribution of Genres, Keywords, and Overview Using Word2Vec"
+    )
+    fig.show()
+
+    return membership
 
 #Find Cluster
 def find_from_cluster(movie, class_type, vectorized_column):
