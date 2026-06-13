@@ -336,13 +336,13 @@ def fuzzy_clustering(matrix, best_clusters, fuzziness_param = 2, error = 1e-5, m
   Returns:
     Cluster membership of each movie
   """
-    #transpose Matrix
-    matrix = matrix.T
-    #Fuzzy C-means Clustering
-    cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(matrix, best_clusters, fuzziness_param, error, maxiter)
-    #Determines cluster membership of each movie
-    cluster_membership = np.argmax(u, axis = 0)
-    return cluster_membership
+  #transpose Matrix
+  matrix = matrix.T
+  #Fuzzy C-means Clustering
+  cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(matrix, best_clusters, fuzziness_param, error, maxiter)
+  #Determines cluster membership of each movie
+  cluster_membership = np.argmax(u, axis = 0)
+  return cluster_membership
 
 def run_gmm(vectorized_column, n_components=8):
     # Fit GMM
