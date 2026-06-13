@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 from numpy import random
+from collections import Counter
 
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
