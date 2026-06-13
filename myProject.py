@@ -133,8 +133,10 @@ if user_input:
             st.warning(f"No movie found for: {movie}")
 
     if correct_movies:
-        st.write("We think you'd enjoy the following movie(s)...")
-        st.success(f"Matched movies: {correct_movies}")
+      st.write("We think you'd enjoy the following movie(s)...")
+      st.success(f"Matched movies: {correct_movies}")
+      recommendations = recommend(correct_movies[0], word2vec_vector)
+      st.dataframe(recommendations)
 
 #DATA VISUALIZATION___________________________________
 
