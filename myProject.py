@@ -1,6 +1,7 @@
 #Importing all necessary libraries
 import pandas as pd
 import numpy as np
+import seaborn as sns
 from numpy import random
 from collections import Counter
 
@@ -25,7 +26,12 @@ from sklearn.metrics import silhouette_score
 import streamlit as st
 from difflib import get_close_matches
 
-df = pd.read_csv("TMDB_movie_dataset_v11.csv", engine='python', on_bad_lines='warn')
+# use this cache function so streamlit doesn't run the entire script for every interaction
+@st.cache_data
+def load_data():
+    df = pd.read_csv("TMDB_movie_dataset_v11.csv")
+    # preprocessing...
+    return df
 
 #PREPROCESSING________________________________________
 def standardization(input_data):
@@ -92,7 +98,7 @@ def preprocessing(df):
   #Standardizes Columns
   df["columns"] = standardization(df["columns"])
 
-  df = df.reset_index()
+df = load_data()
 
   return df
 
@@ -100,12 +106,6 @@ def preprocessing(df):
 df = preprocessing(df)
 
 #USER INTERFACE + user input function _______________________________
-# use this cache function so streamlit doesn't run the entire script for every interaction
-@st.cache_data
-def load_data():
-    df = pd.read_csv("TMDB_movie_dataset_v11.csv")
-    # preprocessing...
-    return df
 
 # displaying arguments
 st.title("Recommendation Box")
@@ -247,21 +247,18 @@ sentences = [row.split() for row in df['columns']]
     # window: maximum distance between the current and predicted word within a sentence
     # min_count: ignores all words with total frequency lower than this
     # workers: use this many worker threads to train the model
-word2vec_model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4, iter=15)
+word2vec_model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4, epochs=15)
 
 def get_document_vector(text_tokens, model, vector_size):
-    """ 
-    This function gets a document vector by averaging the word vectors within the document
-    """
     vectors = []
     for word in text_tokens:
         if word in model.wv:
             vectors.append(model.wv[word])
-        if vectors:
-            return np.mean(vectors, axis=0)
-        else:
-            # return a zero vector if no words from the document are found in the model's vocabulary
-            return np.zeros(vector_size)
+    # dedented — runs after the full loop
+    if vectors:
+        return np.mean(vectors, axis=0)
+    else:
+        return np.zeros(vector_size)
 
     # Create a new column in the DataFrame for the Word2Vec document vectors
 df['word2vec_vectors'] = [get_document_vector(tokens, word2vec_model, 100) for tokens in sentences]
@@ -356,7 +353,7 @@ def fuzzy_clustering(matrix, best_clusters, fuzziness_param = 2, error = 1e-5, m
 def run_gmm(vectorized_column, n_components=8):
     # Fit GMM
     gmm = GaussianMixture(n_components=n_components, covariance_type="full", random_state=42)
-    gmm.fit(reduced_vector)
+    gmm.fit(vectorized_column)
     membership = gmm.predict(reduced_vector)
 
     print("Cluster distribution:")
