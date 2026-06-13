@@ -27,13 +27,6 @@ from sklearn.mixture import GaussianMixture
 import streamlit as st
 from difflib import get_close_matches
 
-# LOADING THE DATASET ________________________________________
-# use this cache function so streamlit doesn't run the entire script for every interaction
-@st.cache_data
-def load_data():
-    df = pd.read_csv("TMDB_movie_dataset_v11.csv")
-    return preprocessing(df)
-
 #PREPROCESSING________________________________________
 def standardization(input_data):
   '''
@@ -101,10 +94,14 @@ def preprocessing(df):
   df = df.reset_index()
   return df
 
-df = load_data()
+# LOADING THE DATASET ________________________________________
+# use this cache function so streamlit doesn't run the entire script for every interaction
+@st.cache_data
+def load_data():
+    df = pd.read_csv("TMDB_movie_dataset_v11.csv")
+    return preprocessing(df)
 
-#Preprocessing the Data Frame
-df = preprocessing(df)
+df = load_data()
 
 #USER INTERFACE + user input function _______________________________
 
@@ -243,11 +240,11 @@ from gensim.models import Word2Vec
 
 sentences = [row.split() for row in df['columns']]
 
-    # Train the Word2Vec model
-    # vector_size: dimensionality of the word vectors
-    # window: maximum distance between the current and predicted word within a sentence
-    # min_count: ignores all words with total frequency lower than this
-    # workers: use this many worker threads to train the model
+# Train the Word2Vec model
+# vector_size: dimensionality of the word vectors
+# window: maximum distance between the current and predicted word within a sentence
+# min_count: ignores all words with total frequency lower than this
+# workers: use this many worker threads to train the model
 word2vec_model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4, epochs=15)
 
 def get_document_vector(text_tokens, model, vector_size):
