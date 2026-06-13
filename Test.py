@@ -1,5 +1,26 @@
 import myProject
 
+#Running Fuzzy Clustering with Text Vectorization Matrices 
+
+#Count Vectorizer
+count_clusters, count_fpc = find_best_clusters(count_matrix_reduced)
+df["fuzzy count"] = fuzzy_clustering(count_matrix_reduced, count_clusters)
+#TFIDF 
+tfidf_clusters, tfidf_fpc = find_best_clusters(tfidf_matrix_reduced)
+df["fuzzy tfidf"] = fuzzy_clustering(tfidf_matrix_reduced, tfidf_clusters)
+#Word2Vec
+word2vec_clusters, word2vec_fpc = find_best_clusters(word2vec_vector)
+df["fuzzy word2vec"] = fuzzy_clustering(word2vec_vector, word2vec_clusters)
+
+#Running Gaussian Mixture Model with Text Vectorization Matrices
+
+#Count Vectorizer
+df["gmm count"] = run_gmm(count_matrix_reduced)
+#TFIDF
+df["gmm tfidf"] = run_gmm(tfidf_matrix_reduced)
+#Word2Vec
+df["gmm word2vec"] = run_gmm(word2vec_vector)
+
 def repeated_experiments(metric, movie_list, vector, cluster = None):
     """
     A function to test the different combinations of similarity metrics, vectorization techniques, and clustering models.
