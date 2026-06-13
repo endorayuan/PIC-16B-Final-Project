@@ -21,8 +21,96 @@ import skfuzzy as fuzz
 from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score
 
+#PREPROCESSING________________________________________
+def standardization(input_data):
+  '''
+  This function standardizes input data by removing punctuation and lowercasing letters.
+  Args:
+    input_data (panda series): series containing text
+  Return:
+    standardized_text (panda series): series containing standardized text
+  '''
+  #removes punctuation from the text and replaces it with ' '
+  no_punctuation = input_data.str.replace(r'[^\w\s]', '', regex=True)
+  #lowercases all uppercase letters
+  standardized_text = no_punctuation.str.lower()
+  return standardized_text
 
+def list_to_string(x):
+  '''
+  This function converts a list into a long string
+  Args:
+    x (list): list of strings
+  Return:
+    x (string): long string containing each string in the list
+  '''
+  #Turns list into string
+  if isinstance(x, list):
+    return " ".join(x)
+  return str(x)
 
+def preprocessing(df):
+  '''
+  This function preprocesses the TMDB_movie pandas data frame
+  Args:
+    df (pandas data frame): data frame containing movies
+  Return:
+    df (pandas data frame): preprocessed data frame
+  '''
+  df = df.copy()
+
+  #Removing explicit content
+  df = df[df["adult"] == False]
+
+  #Creating a new column called release year
+  df["release_year"]= pd.to_datetime(df["release_date"]).dt.year
+  df["display_title"] = (df["title"]+" ("+df["release_year"].astype(str)+")")
+
+  #Selecting movies that have been released on or after 1980
+  df = df[df["status"]=="Released"]
+  df = df[df["release_year"]>=1980]
+
+  #Removing all movies with no values for keywords, genre, and overview
+  df = df.dropna(subset = ["genres", "keywords", "overview"])
+
+  df["genres"] = df["genres"].apply(list_to_string)
+  df["keywords"] = df["keywords"].apply(list_to_string)
+
+  #Combines columns for Text Vectorization
+  df["columns"] = df["keywords"] + " " + df["genres"] + " " + df["overview"] # combines columns
+
+  #Standardizes Columns
+  df["columns"] = standardization(df["columns"])
+
+  df = df.reset_index()
+
+  return df
+
+#Preprocessing the Data Frame
+df = preprocessing(df)
+
+#DATA VISUALIZATION___________________________________
+
+#Creates a histogram of movies released each year
+fig, ax=plt.subplots(figsize=(20,8))
+fig= sns.histplot(df, x= "release_year")
+plt.xticks(np.arange(df["release_year"].min(),df["release_year"].max()+1,10)) #this was to change the tiks bcuz it was horrific
+plt.suptitle("Representation of the Growing Influx of Movies",fontsize=20, fontweight = "bold")
+plt.ylabel("Number of Movies", fontweight = "bold")
+plt.xlabel("Release Year", fontweight = "bold")
+plt.show()
+
+#Creates a line plot of the average movie rating per year
+fig= plt.figure(figsize=(20,8))
+average_df = df.groupby("release_year")["vote_average"].mean()
+fig= sns.lineplot(x = average_df.index, y = average_df.values)
+plt.xticks(np.arange(df["release_year"].min(), df["release_year"].max()+1, 10))
+plt.suptitle("Average Vote_average per Year", fontsize = 20, fontweight = "bold")
+plt.ylabel("Average Vote Average", fontweight = "bold")
+plt.xlabel("Release Year", fontweight = "bold")
+plt.show()
+
+#TEXT VECTORIZATION ______________________________________
 #Count Vectorizer
 def count_vectorization (columns):
     """
@@ -46,7 +134,43 @@ def count_vectorization (columns):
 #Apply count vectorizer onto the "columns" column
 count_matrix = count_vectorization("columns")
 
+#TFIDF Vectorizer
+def tfidf_vectorization (df, columns):
+  '''
+  This function turns a text column into a tfidf matrix
+  Args:
+    df (pandas data frame): Dataframe containing text column
+    column (string): Name of the column in the pandas data frame to vectorize
+  Return:
+    matrix (tfidf matrix): tfidf matrix of the text column
+    features: (np array): array of essential words learned
+  '''
+  tfidf = TfidfVectorizer(stop_words="english", ngram_range=(1,2), max_features=10000)
+  matrix = tfidf.fit_transform(df[columns])
+  #Returns a numpy array of essential words learned
+  features = tfidf.get_feature_names_out()
 
+  return matrix, features
+    
+#Runs TFIDF on our selected columns
+tfidf_matrix, features = tfidf_vectorization(df, "columns")
+
+#Turns the matrix into a dense Numpy Array
+array_tfidf_matrix = tfidf_matrix.toarray()
+
+#creates a new data frame of the first 10 films in the TFIDF Matrix
+heat_map_df = pd.DataFrame(array_tfidf_matrix[:10], columns = features, index = df["title"][:10])
+
+#Organizes the dataframe so that we select the 20 most influential words
+top_words = heat_map_df.sum().sort_values(ascending = False).head(20).index
+
+#Creates a HeatMap of TFIDF scores
+plt.figure(figsize=(12,6))
+sns.heatmap(heat_map_df[top_words], cmap ="RdPu")
+plt.title("TF-IDF Vectorization", fontsize = 20, fontweight = "bold")
+plt.xlabel("Features", fontweight = "bold")
+plt.ylabel("Movies", fontweight = "bold")
+plt.show()
 
 #Dimension reduction
 def reduce_dimension(vectorized_column, n_comp):
@@ -80,6 +204,57 @@ count_matrix_reduced = reduce_dimension(count_matrix, 100)
 #Reduce tfidf_matrix to 100 features
 tfidf_matrix_reduced = reduce_dimension(tfidf_matrix, 100)
 
+# MACHINE LEARNING CLUSTERING _______________________________________
+# you must pip install scikit-fuzzy 
+def find_best_clusters(matrix, min_clusters=2, max_clusters=10):
+  '''
+  This function finds the best number of clusters for a fuzzy c-means clustering algorithm.
+  Args:
+    data (vectorized matrix): vectorized matrix of text
+    min_clusters (int): the minimum number of clusters to test
+    max_clusters (int): the maximum number of clusters to test
+  Return:
+    best_clusters (int): the best number of clusters
+    best_fpc (float): the best fuzzy partition coefficient
+  '''
+  fpc_values = [] #records all fpc_values for each n_cluster
+  cluster_range = range(min_clusters, max_clusters + 1) #possible n_clusters
+
+  for n_clusters in cluster_range:
+      _, _, _, _, _, _, fpc = fuzz.cluster.cmeans(matrix, c=n_clusters, m=2, error=0.005, maxiter=1000, init=None)
+      fpc_values.append(fpc)
+
+  # Best cluster count
+  best_index = np.argmax(fpc_values) #returns index of largest value
+  best_clusters = list(cluster_range)[best_index] #returns the best # of clusters
+  best_fpc = fpc_values[best_index] #returns the highest fpc score
+
+  # Plots the process
+  plt.plot(cluster_range, fpc_values)
+  plt.xlabel("Number of Clusters")
+  plt.ylabel("FPC")
+  plt.title("Fuzzy Partition Coefficient")
+
+  return best_clusters, best_fpc
+    
+def fuzzy_clustering(matrix, best_clusters, fuzziness_param = 2, error = 1e-5, maxiter =1000):
+  """
+  Fuzzy C-means clustering algorithm
+  Args:
+    Matrix: Reduced Vectorized Matrix
+    best_cluster: Best number of clusters l
+    fuzziness_param: Fuzziness parameter
+    maxiter: max number of iterations
+  Returns:
+    Cluster membership of each movie
+  """
+    #transpose Matrix
+    matrix = matrix.T
+    #Fuzzy C-means Clustering
+    cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(matrix, best_clusters, fuzziness_param, error, maxiter)
+    #Determines cluster membership of each movie
+    cluster_membership = np.argmax(u, axis = 0)
+    return cluster_membership
 
 
 #Find Cluster
