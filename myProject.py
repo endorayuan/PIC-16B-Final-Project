@@ -561,9 +561,3 @@ def recommend(movie, vectorized_column, cluster_model = None):
 
     #Return the similarity score and a dataframe with the most similar movie
     return recommended_titles
-
-#Create a new dataframe with all of the recommended movies
-recommendations = recommend(correct_movies, word2vec_vector)
-
-# streamlit dataframe
-st.dataframe(recommendations)
