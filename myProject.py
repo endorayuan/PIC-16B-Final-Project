@@ -21,6 +21,9 @@ import skfuzzy as fuzz
 from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score
 
+import streamlit as st
+from difflib import get_close_matches
+
 #PREPROCESSING________________________________________
 def standardization(input_data):
   '''
@@ -89,6 +92,43 @@ def preprocessing(df):
 #Preprocessing the Data Frame
 df = preprocessing(df)
 
+#USER INTERFACE + user input function _______________________________
+# use this cache function so streamlit doesn't run the entire script for every interaction
+@st.cache_data
+def load_data():
+    df = pd.read_csv("TMDB_movie_dataset_v11.csv")
+    # preprocessing...
+    return df
+
+# displaying arguments
+st.title("Recommendation Box")
+st.write("Made by Vy, Ashley, and Endora")
+st.write("Hello and welcome to the recommendation box!")
+st.write("This is a movie recommendation system that utilizes machine learning to help you decide which movie to watch next.")
+st.write("In order to use this program, type in one movie you've watched recently that you loved and want to see more of!")
+
+user_input = st.text_input("Your Movie Here")
+st.write("Make sure it's the correct spelling & capitalization!")
+
+if user_input:
+    user_movies = [movie.strip() for movie in user_input.split(",")]
+    correct_movies= []
+
+    # Iterates through the users movie
+    for movie in user_movies:
+        #gets the closest title in the dataframe
+        matches = get_close_matches(movie, df["display_title"],cutoff=0.4)
+        #If there is a match
+        if matches:
+            #Appends the first matched movie title into correct_movies
+            correct_movies.append(matches[0])
+        else:
+            st.warning(f"No movie found for: {movie}")
+
+    if correct_movies:
+        st.write("We think you'd enjoy the following movie(s)...")
+        st.success(f"Matched movies: {correct_movies}")
+
 #DATA VISUALIZATION___________________________________
 
 #Creates a histogram of movies released each year
@@ -108,6 +148,20 @@ plt.xticks(np.arange(df["release_year"].min(), df["release_year"].max()+1, 10))
 plt.suptitle("Average Vote_average per Year", fontsize = 20, fontweight = "bold")
 plt.ylabel("Average Vote Average", fontweight = "bold")
 plt.xlabel("Release Year", fontweight = "bold")
+plt.show()
+
+#Creates a bar plot of genre frequency
+all_genres = df['genres'].dropna().str.split(',').explode().str.strip()
+genre_counts = Counter(all_genres).most_common()
+genre_df = pd.DataFrame(genre_counts, columns=['genre', 'count'])
+
+plt.figure(figsize=(12, 6))
+sns.barplot(data=genre_df, x='count', y='genre', color='steelblue')
+plt.title('Genre Frequency — Which Genres Dominate the Dataset?', fontsize=14, fontweight='bold')
+plt.xlabel('Number of Movies')
+plt.ylabel('Genre')
+plt.grid(axis='x', alpha=0.3)
+plt.tight_layout()
 plt.show()
 
 #TEXT VECTORIZATION ______________________________________
@@ -171,6 +225,40 @@ plt.title("TF-IDF Vectorization", fontsize = 20, fontweight = "bold")
 plt.xlabel("Features", fontweight = "bold")
 plt.ylabel("Movies", fontweight = "bold")
 plt.show()
+
+# Word2Vec Vectorization
+import nltk
+from nltk.tokenize import word_tokenize
+from gensim.models import Word2Vec
+
+sentences = [row.split() for row in df['columns']]
+
+    # Train the Word2Vec model
+    # vector_size: dimensionality of the word vectors
+    # window: maximum distance between the current and predicted word within a sentence
+    # min_count: ignores all words with total frequency lower than this
+    # workers: use this many worker threads to train the model
+word2vec_model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=4, iter=15)
+
+def get_document_vector(text_tokens, model, vector_size):
+    """ 
+    This function gets a document vector by averaging the word vectors within the document
+    """
+    vectors = []
+    for word in text_tokens:
+        if word in model.wv:
+            vectors.append(model.wv[word])
+        if vectors:
+            return np.mean(vectors, axis=0)
+        else:
+            # return a zero vector if no words from the document are found in the model's vocabulary
+            return np.zeros(vector_size)
+
+    # Create a new column in the DataFrame for the Word2Vec document vectors
+df['word2vec_vectors'] = [get_document_vector(tokens, word2vec_model, 100) for tokens in sentences]
+
+#Put all vectorized rows into a numpy array
+word2vec_vector = np.array([get_document_vector(tokens, word2vec_model, 100) for tokens in sentences])
 
 #Dimension reduction
 def reduce_dimension(vectorized_column, n_comp):
@@ -467,3 +555,6 @@ def recommend(movie, vectorized_column, cluster_model = None):
 
 #Create a new dataframe with all of the recommended movies
 recommendations = recommend(correct_movies, word2vec_vector)
+
+# streamlit dataframe
+st.dataframe(recommendations)
