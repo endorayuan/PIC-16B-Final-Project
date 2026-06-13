@@ -25,6 +25,8 @@ from sklearn.metrics import silhouette_score
 import streamlit as st
 from difflib import get_close_matches
 
+df = pd.read_csv("TMDB_movie_dataset_v11.csv", engine='python', on_bad_lines='warn')
+
 #PREPROCESSING________________________________________
 def standardization(input_data):
   '''
@@ -65,6 +67,10 @@ def preprocessing(df):
 
   #Removing explicit content
   df = df[df["adult"] == False]
+
+  #Dropping irrelevant columns 
+  df = df.drop(columns = ['vote_count', 'runtime', 'backdrop_path', 'budget', 'homepage', 'original_language', 'original_title',
+                                  'production_companies', 'production_countries', 'spoken_languages'])
 
   #Creating a new column called release year
   df["release_year"]= pd.to_datetime(df["release_date"]).dt.year
