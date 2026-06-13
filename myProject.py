@@ -325,7 +325,7 @@ def find_from_cluster(movie, class_type, vectorized_column):
 #Cosine Similarity
 def similarity_of_movies(movie, vectorized_column, cluster_model = None):
     """
-    A function to find recommendations for a movie using the cosine similarity metric. 
+    A function to find recommendations for a movie using the cosine similarity metric. This version is for repeated experiments.
 
     Args:
         movie: string. The title of movie you wish to find a recommendation for
@@ -373,7 +373,7 @@ def similarity_of_movies(movie, vectorized_column, cluster_model = None):
 #Nearest Neighbors
 def nearest_neighbors(movie, vectorized_column, cluster_model = None):
     """
-    A function to find recommendations for a movie using nearest neighbors.
+    A function to find recommendations for a movie using nearest neighbors. This version is for repeated experiments.
 
     Args:
         movie: string. The title of movie you wish to find a recommendation for
@@ -432,7 +432,7 @@ def nearest_neighbors(movie, vectorized_column, cluster_model = None):
 #Final recommendation algorithm
 def recommend(movie, vectorized_column, cluster_model = None):
     """
-    A function to find recommendations for a movie using the cosine similarity metric. 
+    A function to find recommendations for a movie using the cosine similarity metric. This version is for performing recommendations.
 
     Args:
         movie: string. The title of movie you wish to find a recommendation for
