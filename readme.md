@@ -19,6 +19,6 @@ Access Data Set:
 Reminders: 
   Import myProject into Test.py, to accurately run our repeated experiments. 
   Pip Install the Following:
-      pip install scikit-fuzzy
-      pip install streamlit
+      pip install scikit-fuzzy,
+      pip install streamlit,
       pip install gensim
